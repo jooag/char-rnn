@@ -12,12 +12,14 @@ def main():
     ss=100
     layers=2
     hidden_size=512
-    dropout=0.3
+    dropout=0.3    
+    epochs=6000
+    check_each=600
+    epoch = 0
+
+    embedding = {}    
     ds=CharDS(seq_size=ss)    
     loss = torch.nn.CrossEntropyLoss()
-    epochs=6000
-    epoch = 0
-    embedding = {}    
     model = LSTMNet(ds.num_chars, lstm_layers=layers, hidden_size=hidden_size, dropout=dropout).to(device)
 
     crit = torch.nn.CrossEntropyLoss()
@@ -31,7 +33,8 @@ def main():
         loss_hist=hist['loss_hist']
         epoch = hist['num_epochs']
         num_batches= hist['num_batches']
-        npe = hist['batch_per_epoch']
+        npe = hist['batches_per_epoch']
+        
         b= num_batches % npe + 1
         if os.path.exists(f'checkpoints/{num_batches}.pth'):
             chk = torch.load(f'checkpoints/{num_batches}.pth')
@@ -60,8 +63,9 @@ def main():
         print(f"TEST LOSS: {loss}")
         test_hist.append(loss)
         torch.save({'model':model.state_dict(), 'emb_size':ds.num_chars, 'lstm_layers':layers, 'hidden_size':hidden_size, 'dropout': dropout, 'optim':optimizer.state_dict()}, f'checkpoints/{len(loss_hist)}.pth')    
-        torch.save({'num_batches': len(loss_hist),'batch_per_epoch':n, 'num_epochs': epoch, 'loss_hist':loss_hist, 'test_hist':test_hist}, f'checkpoints/train_hist.pth')
+        torch.save({'num_batches': len(loss_hist),'batches_per_epoch':n, 'num_epochs': epoch, 'loss_hist':loss_hist, 'test_hist':test_hist}, f'checkpoints/train_hist.pth')
         model.train()
+
     total_b = len(loss_hist)
     while epoch < epochs:
         h, c = model.init_state(bs)    
@@ -69,10 +73,7 @@ def main():
         for batch, (x, y) in enumerate(dl):
             if batch < b:
                 continue
-            b += 1
-            total_b += 1
-            if total_b % 300 == 0:
-                checkpoint(model, epoch, crit)
+                      
             x=x.to(device)
             y=y.to(device)
 
@@ -92,6 +93,12 @@ def main():
             loss_hist.append(li)
 
             print(f"EPOCH: {epoch} BATCH: {batch}/{n} LOSS: {li}")
+
+            if total_b % check_each == 0:
+                checkpoint(model, epoch, crit)
+
+            b += 1
+            total_b += 1
         print(f"EPOCH COMPLETE")
         
         epoch += 1
