@@ -1,3 +1,4 @@
+from cgi import test
 from dataset import CharDS, tensor_to_str, SeqSampler
 from model import LSTMNet
 from torch.utils.data import DataLoader
@@ -27,14 +28,17 @@ def main():
     
     loss_hist=[]
     test_hist=[]
-    
+    test_points=[]
+
     if os.path.exists('checkpoints/train_hist.pth'):
         hist = torch.load('checkpoints/train_hist.pth')
         loss_hist=hist['loss_hist']
         epoch = hist['num_epochs']
         num_batches= hist['num_batches']
         npe = hist['batches_per_epoch']
-        
+        test_hist=hist['test_hist']
+        test_points=hist['test_points']
+
         b= num_batches % npe + 1
         if os.path.exists(f'checkpoints/{num_batches}.pth'):
             chk = torch.load(f'checkpoints/{num_batches}.pth')
@@ -59,11 +63,27 @@ def main():
                 y_pred, (h, c) = model(x, (h, c))
 
                 loss += crit(y_pred.transpose(1, 2), y).item() / len(test_dl)
-          
+
+
         print(f"TEST LOSS: {loss}")
         test_hist.append(loss)
-        torch.save({'model':model.state_dict(), 'emb_size':ds.num_chars, 'lstm_layers':layers, 'hidden_size':hidden_size, 'dropout': dropout, 'optim':optimizer.state_dict()}, f'checkpoints/{len(loss_hist)}.pth')    
-        torch.save({'num_batches': len(loss_hist),'batches_per_epoch':n, 'num_epochs': epoch, 'loss_hist':loss_hist, 'test_hist':test_hist}, f'checkpoints/train_hist.pth')
+        test_points.append(total_b)
+
+        torch.save(
+            {'model':model.state_dict(), 
+            'emb_size':ds.num_chars, 
+            'lstm_layers':layers, 
+            'hidden_size':hidden_size, 
+            'dropout': dropout, 
+            'optim':optimizer.state_dict()}, 
+            f'checkpoints/{len(loss_hist)}.pth')    
+        torch.save(
+            {'num_batches': len(loss_hist),
+            'batches_per_epoch':n,
+             'num_epochs': epoch, 
+             'loss_hist':loss_hist,
+             'test_hist':test_hist,
+             'test_points':test_points}, f'checkpoints/train_hist.pth')
         model.train()
 
     total_b = len(loss_hist)

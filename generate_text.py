@@ -6,7 +6,7 @@ import torch
 import numpy as np
 
 def main():
-    temp=0.1
+    temp=1
     start = []
     num=64
     if len(sys.argv) > 1:
